@@ -11,6 +11,73 @@
     <a href="/admin/jds" class="text-sm text-brand-600 hover:text-brand-700 font-medium">&larr; All Roles</a>
   </div>
 
+  <!-- Mode Toggle -->
+  <div class="bg-white rounded-2xl border border-surface-200 p-4 mb-6">
+    <div class="flex items-center gap-3">
+      <span class="text-sm font-medium text-slate-700">Input method:</span>
+      <div class="relative inline-flex bg-surface-100 rounded-lg p-0.5">
+        <button type="button" id="toggle-manual" onclick="setMode('manual')"
+                class="mode-toggle-btn relative z-10 px-4 py-1.5 text-sm font-medium rounded-md transition-all">
+          Manual Entry
+        </button>
+        <button type="button" id="toggle-upload" onclick="setMode('upload')"
+                class="mode-toggle-btn relative z-10 px-4 py-1.5 text-sm font-medium rounded-md transition-all">
+          Upload Document
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload Panel (hidden by default) -->
+  <div id="upload-panel" class="hidden mb-6">
+    <div class="bg-white rounded-2xl border border-surface-200 p-6">
+      <h2 class="text-base font-semibold text-slate-800 mb-1">Upload JD Document</h2>
+      <p class="text-xs text-slate-500 mb-4">Upload a PDF, Word (.docx), or Text (.txt) file. We'll extract the fields automatically — you can review and edit before saving.</p>
+
+      <div id="upload-dropzone"
+           class="border-2 border-dashed border-surface-300 rounded-xl p-8 text-center cursor-pointer transition hover:border-brand-400 hover:bg-brand-50/30"
+           ondragover="event.preventDefault(); this.classList.add('border-brand-500','bg-brand-50/50')"
+           ondragleave="this.classList.remove('border-brand-500','bg-brand-50/50')"
+           ondrop="handleDrop(event)"
+           onclick="document.getElementById('jd-file-input').click()">
+        <input type="file" id="jd-file-input" accept=".pdf,.docx,.doc,.txt" class="hidden" onchange="handleFileSelect(this)">
+        <div id="dropzone-idle">
+          <div class="mx-auto w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center mb-3">
+            <svg class="w-6 h-6 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+          </div>
+          <p class="text-sm font-medium text-slate-700">Drop your JD file here or click to browse</p>
+          <p class="text-xs text-slate-400 mt-1">PDF, Word (.docx), or Text (.txt) — max 10 MB</p>
+        </div>
+        <div id="dropzone-file" class="hidden">
+          <div class="flex items-center justify-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center">
+              <svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+            </div>
+            <div class="text-left">
+              <p id="file-name" class="text-sm font-medium text-slate-800"></p>
+              <p id="file-size" class="text-xs text-slate-400"></p>
+            </div>
+            <button type="button" onclick="event.stopPropagation(); clearFile()" class="ml-3 text-slate-400 hover:text-red-500 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 flex items-center gap-3">
+        <button type="button" id="parse-btn" onclick="parseDocument()" disabled
+                class="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-2.5 rounded-xl transition text-sm">
+          Extract Fields
+        </button>
+        <span id="parse-status" class="text-sm hidden"></span>
+      </div>
+    </div>
+  </div>
+
   <form id="jd-form" class="space-y-6">
     <!-- Basic Info -->
     <div class="bg-white rounded-2xl border border-surface-200 p-6">
@@ -122,8 +189,180 @@
 {% endblock %}
 
 {% block scripts %}
+<style>
+  .mode-toggle-btn { color: #64748b; }
+  .mode-toggle-btn.active { background: white; color: #1e293b; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  .form-prefilled { animation: prefill-flash .6s ease-out; }
+  @keyframes prefill-flash {
+    0% { background-color: #dbeafe; }
+    100% { background-color: transparent; }
+  }
+</style>
+
 <script>
 const tagData = { must_have: [], good_to_have: [], soft_skills: [] };
+let selectedFile = null;
+let currentMode = 'manual';
+
+function setMode(mode) {
+  currentMode = mode;
+  const manualBtn = document.getElementById('toggle-manual');
+  const uploadBtn = document.getElementById('toggle-upload');
+  const uploadPanel = document.getElementById('upload-panel');
+
+  manualBtn.classList.toggle('active', mode === 'manual');
+  uploadBtn.classList.toggle('active', mode === 'upload');
+
+  if (mode === 'upload') {
+    uploadPanel.classList.remove('hidden');
+  } else {
+    uploadPanel.classList.add('hidden');
+  }
+}
+
+setMode('manual');
+
+/* ── File Handling ───────────────────────────────── */
+
+function handleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('border-brand-500', 'bg-brand-50/50');
+  const file = e.dataTransfer.files[0];
+  if (file) selectFile(file);
+}
+
+function handleFileSelect(input) {
+  if (input.files[0]) selectFile(input.files[0]);
+}
+
+function selectFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['pdf', 'docx', 'doc', 'txt'].includes(ext)) {
+    alert('Unsupported file type. Please upload a PDF, Word (.docx), or Text (.txt) file.');
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    alert('File is too large. Maximum size is 10 MB.');
+    return;
+  }
+  selectedFile = file;
+  document.getElementById('file-name').textContent = file.name;
+  document.getElementById('file-size').textContent = (file.size / 1024).toFixed(1) + ' KB';
+  document.getElementById('dropzone-idle').classList.add('hidden');
+  document.getElementById('dropzone-file').classList.remove('hidden');
+  document.getElementById('parse-btn').disabled = false;
+  document.getElementById('parse-status').classList.add('hidden');
+}
+
+function clearFile() {
+  selectedFile = null;
+  document.getElementById('jd-file-input').value = '';
+  document.getElementById('dropzone-idle').classList.remove('hidden');
+  document.getElementById('dropzone-file').classList.add('hidden');
+  document.getElementById('parse-btn').disabled = true;
+  document.getElementById('parse-status').classList.add('hidden');
+}
+
+/* ── Parse Document via API ─────────────────────── */
+
+async function parseDocument() {
+  if (!selectedFile) return;
+
+  const btn = document.getElementById('parse-btn');
+  const status = document.getElementById('parse-status');
+
+  btn.disabled = true;
+  btn.textContent = 'Extracting...';
+  status.textContent = 'Sending to AI for extraction — this may take a few seconds';
+  status.className = 'text-sm text-slate-500';
+  status.classList.remove('hidden');
+
+  try {
+    const fd = new FormData();
+    fd.append('jd_file', selectedFile);
+
+    const res = await fetch('/api/admin/jds/parse', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    if (data.error) {
+      status.textContent = data.error;
+      status.className = 'text-sm text-red-600';
+      btn.disabled = false;
+      btn.textContent = 'Extract Fields';
+      return;
+    }
+
+    populateForm(data);
+    status.textContent = 'Fields extracted! Review the form below and edit as needed before saving.';
+    status.className = 'text-sm text-emerald-700';
+    btn.textContent = 'Re-extract';
+    btn.disabled = false;
+  } catch (err) {
+    status.textContent = 'Something went wrong. Please try again or use manual entry.';
+    status.className = 'text-sm text-red-600';
+    btn.disabled = false;
+    btn.textContent = 'Extract Fields';
+  }
+}
+
+function populateForm(data) {
+  const form = document.getElementById('jd-form');
+
+  const fields = {
+    title: data.title || '',
+    location: data.location || '',
+    experience: data.experience || '',
+    experience_min: data.experience_min != null ? data.experience_min : '',
+    experience_max: data.experience_max != null ? data.experience_max : '',
+    department: data.department || 'Product Engineering',
+  };
+
+  for (const [name, value] of Object.entries(fields)) {
+    const el = form.querySelector(`[name="${name}"]`);
+    if (el) {
+      el.value = value;
+      el.classList.add('form-prefilled');
+      setTimeout(() => el.classList.remove('form-prefilled'), 700);
+    }
+  }
+
+  if (data.mode) {
+    const modeSelect = form.querySelector('[name="mode"]');
+    const normalized = data.mode.charAt(0).toUpperCase() + data.mode.slice(1).toLowerCase();
+    for (const opt of modeSelect.options) {
+      if (opt.value.toLowerCase() === normalized.toLowerCase()) {
+        modeSelect.value = opt.value;
+        break;
+      }
+    }
+    modeSelect.classList.add('form-prefilled');
+    setTimeout(() => modeSelect.classList.remove('form-prefilled'), 700);
+  }
+
+  for (const key of ['must_have', 'good_to_have', 'soft_skills']) {
+    tagData[key] = [];
+    const wrap = form.querySelector(`input[data-target="${key}"]`).closest('.tag-input-wrap');
+    const existing = wrap.querySelectorAll('.tag-chip');
+    existing.forEach(el => el.remove());
+
+    if (Array.isArray(data[key])) {
+      data[key].forEach(val => addTag(key, val, wrap));
+    }
+    wrap.classList.add('form-prefilled');
+    setTimeout(() => wrap.classList.remove('form-prefilled'), 700);
+  }
+
+  if (Array.isArray(data.responsibilities) && data.responsibilities.length) {
+    const ta = form.querySelector('[name="responsibilities"]');
+    ta.value = data.responsibilities.join('\n');
+    ta.classList.add('form-prefilled');
+    setTimeout(() => ta.classList.remove('form-prefilled'), 700);
+  }
+
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ── Tag Input ──────────────────────────────────── */
 
 function handleTagKey(e) {
   if (e.key === 'Enter' || e.key === ',') {
@@ -172,6 +411,8 @@ function escapeHtml(text) {
   d.textContent = text;
   return d.innerHTML;
 }
+
+/* ── Form Submit ────────────────────────────────── */
 
 document.getElementById('jd-form').addEventListener('submit', async function(e) {
   e.preventDefault();

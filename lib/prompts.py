@@ -87,6 +87,38 @@ Key Responsibilities:
 7. FIRST MESSAGE: If the candidate's first message is a greeting or general opener, welcome them warmly, briefly introduce the role, and invite them to ask questions.{hint_section}"""
 
 
+JD_EXTRACTION_PROMPT = """You are a precise job description parser. Extract structured information from the job description text below.
+
+Respond ONLY with valid JSON. No markdown, no explanation, no preamble.
+
+Required JSON schema:
+{
+  "title": "<job title string>",
+  "location": "<location string or null>",
+  "mode": "<Hybrid | Remote | Onsite or null>",
+  "experience": "<experience label like '5 to 8 years' or '12+ years' or null>",
+  "experience_min": <minimum years as number or null>,
+  "experience_max": <maximum years as number or null>,
+  "department": "<department string or null>",
+  "must_have": ["skill1", "skill2", ...],
+  "good_to_have": ["skill1", "skill2", ...],
+  "soft_skills": ["skill1", "skill2", ...],
+  "responsibilities": ["responsibility1", "responsibility2", ...]
+}
+
+Rules:
+- Extract only what is explicitly stated. Do not infer or fabricate.
+- Normalize skill names (e.g., "Spring boot" → "Spring Boot", "k8s" → "Kubernetes").
+- For mode, map terms like "work from home" to "Remote", "office" to "Onsite", "mix" or "flexible" to "Hybrid". Use null if not mentioned.
+- For experience, extract both the display label (e.g., "5 to 8 years") and numeric min/max. If only a single number is given (e.g., "5+ years"), set experience_min to that number and experience_max to null.
+- Separate must-have/mandatory/required skills from nice-to-have/preferred/good-to-have skills.
+- If the document doesn't clearly separate skill tiers, put core technical skills in must_have and secondary ones in good_to_have.
+- If a field cannot be determined, use null for scalars or empty arrays for lists.
+
+Job description text:
+"""
+
+
 RESUME_EXTRACTION_PROMPT = """You are a precise resume parser. Extract structured information from the resume text below.
 
 Respond ONLY with valid JSON. No markdown, no explanation, no preamble.

@@ -54,6 +54,7 @@ from lib.prompts import build_chat_system_prompt
 from lib.confidence_gate import pre_screen
 from lib.resume_parser import parse_resume
 from lib.match_scorer import compute_match
+from lib.jd_parser import parse_jd_document, allowed_jd_file
 
 init_db()
 
@@ -362,6 +363,37 @@ def api_candidate_detail(cid):
     if c.get("email"):
         c["conversations"] = get_conversations(candidate_email=c["email"])
     return jsonify(c)
+
+
+@app.route("/api/admin/jds/parse", methods=["POST"])
+@admin_required
+@limiter.limit("10 per minute")
+def api_parse_jd_document():
+    if "jd_file" not in request.files:
+        return jsonify({"error": "Please upload a JD document"}), 400
+
+    file = request.files["jd_file"]
+    if not file.filename or not allowed_jd_file(file.filename):
+        return jsonify({"error": "Unsupported file type. Upload a PDF, Word (.docx), or Text (.txt) file."}), 400
+
+    filename = f"{uuid.uuid4().hex}_{file.filename}"
+    file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    file.save(file_path)
+
+    try:
+        raw_text, fields = parse_jd_document(file_path, file.filename)
+        fields["full_text"] = raw_text
+        return jsonify(fields)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 422
+    except Exception as e:
+        logger.exception("JD document parsing failed")
+        return jsonify({"error": f"Failed to parse document: {str(e)}"}), 500
+    finally:
+        try:
+            os.unlink(file_path)
+        except OSError:
+            pass
 
 
 @app.route("/api/admin/jds", methods=["POST"])
