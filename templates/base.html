@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Wissen Recruit AI{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['DM Sans', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              500: '#2563eb',
+              600: '#1d4ed8',
+              700: '#1e3a5f',
+              800: '#1e2d4a',
+              900: '#0f172a',
+            },
+            accent: {
+              400: '#38bdf8',
+              500: '#0ea5e9',
+            },
+            surface: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              200: '#e2e8f0',
+              300: '#cbd5e1',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'DM Sans', system-ui, sans-serif; }
+    .gradient-header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #1e40af 100%);
+    }
+    .card-hover { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+    .chat-bubble-user {
+      background: #1e3a5f;
+      color: white;
+      border-radius: 18px 18px 4px 18px;
+    }
+    .chat-bubble-bot {
+      background: #f1f5f9;
+      color: #1e293b;
+      border-radius: 18px 18px 18px 4px;
+    }
+    .typing-dot { animation: typing 1.4s infinite; }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing {
+      0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+      30% { opacity: 1; transform: translateY(-4px); }
+    }
+    .fade-in { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .score-ring { transition: stroke-dashoffset 1s ease; }
+    .slide-up { animation: slideUp 0.4s ease; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    input:focus, textarea:focus, select:focus { outline: none; box-shadow: 0 0 0 2px #2563eb33; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body class="bg-surface-50 text-slate-800 min-h-screen">
+  <!-- Header -->
+  <header class="gradient-header text-white shadow-lg">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3 hover:opacity-90 transition">
+        <div class="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center font-semibold text-sm tracking-tight">W</div>
+        <div>
+          <div class="font-semibold text-lg leading-tight tracking-tight">Wissen Recruit AI</div>
+          <div class="text-xs text-blue-200 tracking-wide">Candidate Engagement Platform</div>
+        </div>
+      </a>
+      <nav class="flex items-center gap-4 text-sm">
+        <a href="/" class="text-blue-200 hover:text-white transition">Roles</a>
+        <a href="/admin" class="text-blue-200 hover:text-white transition">Admin</a>
+        <span id="cost-badge" class="hidden text-xs bg-white/10 px-2.5 py-1 rounded-full font-mono"></span>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-surface-200 mt-12 py-6 text-center text-xs text-slate-400">
+    Wissen Technology Hackathon 2026 &middot; AI-Powered Candidate Engagement &middot; Built with Claude
+  </footer>
+
+  <script>
+    // Fetch and display API cost in header
+    async function updateCost() {
+      try {
+        const res = await fetch('/api/usage');
+        const data = await res.json();
+        const badge = document.getElementById('cost-badge');
+        badge.textContent = `$${data.estimated_cost_usd.toFixed(4)} spent`;
+        badge.classList.remove('hidden');
+      } catch(e) {}
+    }
+    updateCost();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

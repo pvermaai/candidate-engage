@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Open Roles — Wissen Recruit AI{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-12">
+  <!-- Hero -->
+  <div class="text-center mb-12">
+    <h1 class="text-3xl font-semibold text-slate-900 mb-3 tracking-tight">Explore Open Roles at Wissen</h1>
+    <p class="text-slate-500 max-w-xl mx-auto leading-relaxed">
+      Discover opportunities that match your skills. Chat with our AI assistant to learn
+      about each role, then express your interest and upload your resume for an instant match analysis.
+    </p>
+  </div>
+
+  <!-- JD Cards -->
+  <div class="grid md:grid-cols-2 gap-6">
+    {% for jd in jds %}
+    <a href="/chat/{{ jd.id }}" class="card-hover block bg-white rounded-2xl border border-surface-200 p-6 group">
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <h2 class="text-xl font-semibold text-slate-900 group-hover:text-brand-600 transition">{{ jd.title }}</h2>
+          <p class="text-sm text-slate-400 mt-1">Product Engineering</p>
+        </div>
+        <span class="inline-flex items-center gap-1 text-xs font-medium bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          Active
+        </span>
+      </div>
+
+      <div class="flex flex-wrap gap-2 mb-4">
+        <span class="text-xs bg-surface-100 text-slate-600 px-2.5 py-1 rounded-full">{{ jd.location }}</span>
+        <span class="text-xs bg-surface-100 text-slate-600 px-2.5 py-1 rounded-full">{{ jd.mode }}</span>
+        <span class="text-xs bg-surface-100 text-slate-600 px-2.5 py-1 rounded-full">{{ jd.experience }}</span>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-slate-500">Ask questions &amp; apply</span>
+        <span class="text-brand-600 text-sm font-medium group-hover:translate-x-1 transition-transform">&rarr;</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Company Info -->
+  <div class="mt-16 bg-white rounded-2xl border border-surface-200 p-8">
+    <h3 class="text-lg font-semibold text-slate-900 mb-4">About Wissen Technology</h3>
+    <div class="grid md:grid-cols-4 gap-6 text-center">
+      <div>
+        <div class="text-2xl font-semibold text-brand-600">2015</div>
+        <div class="text-sm text-slate-500 mt-1">Founded</div>
+      </div>
+      <div>
+        <div class="text-2xl font-semibold text-brand-600">2000+</div>
+        <div class="text-sm text-slate-500 mt-1">Employees</div>
+      </div>
+      <div>
+        <div class="text-2xl font-semibold text-brand-600">5</div>
+        <div class="text-sm text-slate-500 mt-1">Countries</div>
+      </div>
+      <div>
+        <div class="text-2xl font-semibold text-brand-600">100%</div>
+        <div class="text-sm text-slate-500 mt-1">Product Engineering</div>
+      </div>
+    </div>
+    <p class="mt-6 text-sm text-slate-500 leading-relaxed max-w-2xl">
+      Wissen Technology is a product engineering company solving complex business challenges
+      for global enterprises. We build mission-critical systems with agile pods, outcome-based
+      delivery, and an engineering-first culture across US, UK, UAE, India, and Australia.
+    </p>
+  </div>
+</div>
+{% endblock %}

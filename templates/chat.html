@@ -1,0 +1,548 @@
+{% extends "base.html" %}
+{% block title %}{{ jd.title }} — Wissen Recruit AI{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-6">
+  <div class="grid lg:grid-cols-5 gap-6" style="min-height: calc(100vh - 200px);">
+
+    <!-- Left: JD Details Panel -->
+    <div class="lg:col-span-2 space-y-4">
+      <!-- Role Card -->
+      <div class="bg-white rounded-2xl border border-surface-200 p-5">
+        <div class="flex items-start justify-between mb-3">
+          <h1 class="text-xl font-semibold text-slate-900">{{ jd.title }}</h1>
+          <span class="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Active</span>
+        </div>
+        <div class="flex flex-wrap gap-2 text-xs mb-4">
+          <span class="bg-surface-100 text-slate-600 px-2.5 py-1 rounded-full">{{ jd.location }}</span>
+          <span class="bg-surface-100 text-slate-600 px-2.5 py-1 rounded-full">{{ jd.mode }}</span>
+          <span class="bg-surface-100 text-slate-600 px-2.5 py-1 rounded-full">{{ jd.experience }}</span>
+        </div>
+
+        <!-- Skills -->
+        <div class="mb-4">
+          <h3 class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Must-Have Skills</h3>
+          <div class="flex flex-wrap gap-1.5">
+            {% for skill in jd.must_have %}
+            <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{{ skill }}</span>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <h3 class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Good to Have</h3>
+          <div class="flex flex-wrap gap-1.5">
+            {% for skill in jd.good_to_have %}
+            <span class="text-xs bg-violet-50 text-violet-700 px-2 py-0.5 rounded">{{ skill }}</span>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Responsibilities</h3>
+          <ul class="text-sm text-slate-600 space-y-1.5">
+            {% for r in jd.responsibilities %}
+            <li class="flex items-start gap-2">
+              <span class="text-brand-500 mt-1 text-xs">&#9679;</span>
+              <span>{{ r }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      <!-- Interest CTA -->
+      <button onclick="showInterestForm()"
+              id="interest-cta"
+              class="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-3.5 rounded-xl transition shadow-sm shadow-brand-600/20 text-sm">
+        I'm Interested! &rarr;
+      </button>
+    </div>
+
+    <!-- Right: Chat + Interest Form -->
+    <div class="lg:col-span-3 flex flex-col">
+
+      <!-- Chat Panel -->
+      <div id="chat-panel" class="flex-1 flex flex-col bg-white rounded-2xl border border-surface-200 overflow-hidden">
+        <!-- Chat header -->
+        <div class="px-5 py-3 border-b border-surface-100 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center">
+            <span class="text-white text-xs font-semibold">AI</span>
+          </div>
+          <div>
+            <div class="text-sm font-medium text-slate-800">Wissen Recruit AI</div>
+            <div class="text-xs text-emerald-600">Online</div>
+          </div>
+        </div>
+
+        <!-- Chat messages -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto px-5 py-4 space-y-4" style="max-height: 55vh;">
+          <!-- Welcome message -->
+          <div class="flex gap-3 fade-in">
+            <div class="w-7 h-7 rounded-full bg-brand-600 flex-shrink-0 flex items-center justify-center mt-1">
+              <span class="text-white text-[10px] font-semibold">AI</span>
+            </div>
+            <div class="chat-bubble-bot px-4 py-3 max-w-md">
+              <p class="text-sm leading-relaxed">
+                Hi there! 👋 I'm here to help you learn about the
+                <strong>{{ jd.title }}</strong> role at Wissen Technology.
+                Feel free to ask me anything about the position, required skills,
+                team, or company culture. What would you like to know?
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat input -->
+        <div class="px-4 py-3 border-t border-surface-100">
+          <div class="flex gap-2">
+            <input type="text" id="chat-input"
+                   placeholder="Ask about the role, skills, team, culture..."
+                   class="flex-1 border border-surface-200 rounded-xl px-4 py-2.5 text-sm bg-surface-50 placeholder-slate-400 focus:border-brand-500"
+                   onkeydown="if(event.key==='Enter') sendMessage()">
+            <button onclick="sendMessage()"
+                    id="send-btn"
+                    class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition flex items-center gap-1">
+              Send
+            </button>
+          </div>
+          <div class="flex gap-2 mt-2 flex-wrap">
+            <button onclick="askSuggestion(this)" class="text-xs bg-surface-100 hover:bg-surface-200 text-slate-600 px-3 py-1.5 rounded-full transition">What skills are needed?</button>
+            <button onclick="askSuggestion(this)" class="text-xs bg-surface-100 hover:bg-surface-200 text-slate-600 px-3 py-1.5 rounded-full transition">Tell me about Wissen</button>
+            <button onclick="askSuggestion(this)" class="text-xs bg-surface-100 hover:bg-surface-200 text-slate-600 px-3 py-1.5 rounded-full transition">Is remote work possible?</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interest Form (hidden initially) -->
+      <div id="interest-panel" class="hidden">
+        <div class="bg-white rounded-2xl border border-surface-200 p-6 slide-up">
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="text-lg font-semibold text-slate-900">Express Your Interest</h2>
+            <button onclick="hideInterestForm()" class="text-slate-400 hover:text-slate-600 text-sm">Back to Chat</button>
+          </div>
+
+          <form id="interest-form" enctype="multipart/form-data" class="space-y-4">
+            <input type="hidden" name="jd_id" value="{{ jd.id }}">
+
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Full Name *</label>
+                <input type="text" name="name" required
+                       class="w-full border border-surface-200 rounded-lg px-3 py-2.5 text-sm bg-surface-50">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Email *</label>
+                <input type="email" name="email" required
+                       class="w-full border border-surface-200 rounded-lg px-3 py-2.5 text-sm bg-surface-50">
+              </div>
+            </div>
+
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Phone</label>
+                <input type="tel" name="phone"
+                       class="w-full border border-surface-200 rounded-lg px-3 py-2.5 text-sm bg-surface-50">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Years of Experience</label>
+                <input type="number" name="experience_years" min="0" max="50"
+                       class="w-full border border-surface-200 rounded-lg px-3 py-2.5 text-sm bg-surface-50">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1.5">Current Location</label>
+              <input type="text" name="current_location" placeholder="e.g., Bangalore, Mumbai"
+                     class="w-full border border-surface-200 rounded-lg px-3 py-2.5 text-sm bg-surface-50">
+            </div>
+
+            <!-- Resume Upload -->
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1.5">Resume (PDF) *</label>
+              <div id="drop-zone"
+                   class="border-2 border-dashed border-surface-300 rounded-xl p-6 text-center cursor-pointer hover:border-brand-500 hover:bg-blue-50/30 transition"
+                   onclick="document.getElementById('resume-input').click()"
+                   ondragover="event.preventDefault(); this.classList.add('border-brand-500','bg-blue-50/30')"
+                   ondragleave="this.classList.remove('border-brand-500','bg-blue-50/30')"
+                   ondrop="handleDrop(event)">
+                <div id="drop-label">
+                  <div class="text-slate-400 mb-1 text-2xl">&#128196;</div>
+                  <p class="text-sm text-slate-500">Drop your resume here or <span class="text-brand-600 font-medium">browse</span></p>
+                  <p class="text-xs text-slate-400 mt-1">PDF only, up to 10 MB</p>
+                </div>
+                <div id="file-selected" class="hidden text-sm text-emerald-700 font-medium"></div>
+              </div>
+              <input type="file" id="resume-input" name="resume" accept=".pdf"
+                     class="hidden" onchange="handleFileSelect(this)">
+            </div>
+
+            <label class="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" name="consent" required class="mt-1 rounded border-slate-300">
+              <span class="text-xs text-slate-500 leading-relaxed">
+                I consent to Wissen Technology processing my data for recruitment purposes.
+              </span>
+            </label>
+
+            <button type="submit"
+                    id="submit-btn"
+                    class="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-3 rounded-xl transition text-sm">
+              Submit Application
+            </button>
+          </form>
+
+          <!-- Loading State -->
+          <div id="form-loading" class="hidden text-center py-8">
+            <div class="inline-block w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+            <p class="text-sm text-slate-500">Analyzing your resume...</p>
+          </div>
+        </div>
+
+        <!-- Match Result (shown after submission) -->
+        <div id="match-result" class="hidden mt-4 slide-up"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const JD_ID = "{{ jd.id }}";
+let conversationHistory = [];
+
+// ── Chat Logic ───────────────────────────────────────────────
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  input.value = '';
+  addMessage('user', msg);
+  conversationHistory.push({ role: 'user', content: msg });
+
+  const typingEl = showTyping();
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jd_id: JD_ID,
+        messages: conversationHistory.slice(-10),
+        message: msg
+      })
+    });
+
+    // Check if response is JSON (redirected by confidence gate)
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const data = await res.json();
+      removeTyping(typingEl);
+      addMessage('assistant', data.response);
+      conversationHistory.push({ role: 'assistant', content: data.response });
+      return;
+    }
+
+    // Streaming SSE response
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let botResponse = '';
+    let bubbleEl = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.text) {
+            if (!bubbleEl) {
+              removeTyping(typingEl);
+              bubbleEl = addMessage('assistant', '', true);
+            }
+            botResponse += data.text;
+            bubbleEl.innerHTML = formatMessage(botResponse);
+          }
+          if (data.done) {
+            conversationHistory.push({ role: 'assistant', content: botResponse });
+          }
+          if (data.error) {
+            removeTyping(typingEl);
+            addMessage('assistant', 'Sorry, something went wrong. Please try again.');
+          }
+        } catch (e) {}
+      }
+    }
+    if (!bubbleEl) { removeTyping(typingEl); }
+  } catch (e) {
+    removeTyping(typingEl);
+    addMessage('assistant', 'Connection error. Please try again.');
+  }
+
+  updateCost();
+}
+
+function askSuggestion(btn) {
+  document.getElementById('chat-input').value = btn.textContent;
+  sendMessage();
+}
+
+function addMessage(role, content, streaming = false) {
+  const container = document.getElementById('chat-messages');
+  const wrapper = document.createElement('div');
+  wrapper.className = 'flex gap-3 fade-in ' + (role === 'user' ? 'justify-end' : '');
+
+  if (role === 'assistant') {
+    wrapper.innerHTML = `
+      <div class="w-7 h-7 rounded-full bg-brand-600 flex-shrink-0 flex items-center justify-center mt-1">
+        <span class="text-white text-[10px] font-semibold">AI</span>
+      </div>
+      <div class="chat-bubble-bot px-4 py-3 max-w-md">
+        <p class="text-sm leading-relaxed msg-content">${formatMessage(content)}</p>
+      </div>`;
+  } else {
+    wrapper.innerHTML = `
+      <div class="chat-bubble-user px-4 py-3 max-w-md">
+        <p class="text-sm leading-relaxed">${escapeHtml(content)}</p>
+      </div>`;
+  }
+
+  container.appendChild(wrapper);
+  container.scrollTop = container.scrollHeight;
+
+  if (role === 'assistant') {
+    return wrapper.querySelector('.msg-content');
+  }
+}
+
+function showTyping() {
+  const container = document.getElementById('chat-messages');
+  const el = document.createElement('div');
+  el.className = 'flex gap-3 typing-indicator';
+  el.innerHTML = `
+    <div class="w-7 h-7 rounded-full bg-brand-600 flex-shrink-0 flex items-center justify-center mt-1">
+      <span class="text-white text-[10px] font-semibold">AI</span>
+    </div>
+    <div class="chat-bubble-bot px-4 py-3">
+      <div class="flex gap-1.5 items-center h-5">
+        <div class="w-2 h-2 bg-slate-400 rounded-full typing-dot"></div>
+        <div class="w-2 h-2 bg-slate-400 rounded-full typing-dot"></div>
+        <div class="w-2 h-2 bg-slate-400 rounded-full typing-dot"></div>
+      </div>
+    </div>`;
+  container.appendChild(el);
+  container.scrollTop = container.scrollHeight;
+  return el;
+}
+
+function removeTyping(el) {
+  if (el && el.parentNode) el.parentNode.removeChild(el);
+}
+
+function formatMessage(text) {
+  let html = escapeHtml(text);
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\n/g, '<br>');
+  // Convert bullet points
+  html = html.replace(/• /g, '<span class="text-brand-500 mr-1">•</span>');
+  return html;
+}
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+// ── Interest Form Logic ──────────────────────────────────────
+function showInterestForm() {
+  document.getElementById('chat-panel').classList.add('hidden');
+  document.getElementById('interest-panel').classList.remove('hidden');
+  document.getElementById('interest-cta').classList.add('hidden');
+}
+
+function hideInterestForm() {
+  document.getElementById('chat-panel').classList.remove('hidden');
+  document.getElementById('interest-panel').classList.add('hidden');
+  document.getElementById('interest-cta').classList.remove('hidden');
+}
+
+function handleFileSelect(input) {
+  if (input.files.length > 0) {
+    const file = input.files[0];
+    document.getElementById('drop-label').classList.add('hidden');
+    document.getElementById('file-selected').classList.remove('hidden');
+    document.getElementById('file-selected').textContent = '✓ ' + file.name;
+  }
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  const zone = document.getElementById('drop-zone');
+  zone.classList.remove('border-brand-500', 'bg-blue-50/30');
+  const files = e.dataTransfer.files;
+  if (files.length > 0 && files[0].name.toLowerCase().endsWith('.pdf')) {
+    document.getElementById('resume-input').files = files;
+    handleFileSelect(document.getElementById('resume-input'));
+  }
+}
+
+document.getElementById('interest-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const form = this;
+  const formData = new FormData(form);
+
+  // Show loading
+  form.classList.add('hidden');
+  document.getElementById('form-loading').classList.remove('hidden');
+
+  try {
+    const res = await fetch('/api/interest', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    document.getElementById('form-loading').classList.add('hidden');
+
+    if (data.error) {
+      form.classList.remove('hidden');
+      alert('Error: ' + data.error);
+      return;
+    }
+
+    // Show match result
+    const resultDiv = document.getElementById('match-result');
+    resultDiv.classList.remove('hidden');
+
+    if (data.match_result) {
+      resultDiv.innerHTML = renderMatchResult(data.match_result);
+    } else {
+      resultDiv.innerHTML = `
+        <div class="bg-white rounded-2xl border border-surface-200 p-6 text-center">
+          <div class="text-3xl mb-2">✓</div>
+          <h3 class="text-lg font-semibold text-slate-900 mb-2">Application Received!</h3>
+          <p class="text-sm text-slate-500">Thank you for your interest. Our team will review your application and get back to you.</p>
+          <button onclick="hideInterestForm()" class="mt-4 text-sm text-brand-600 hover:text-brand-700 font-medium">Continue chatting</button>
+        </div>`;
+    }
+  } catch (err) {
+    document.getElementById('form-loading').classList.add('hidden');
+    form.classList.remove('hidden');
+    alert('Something went wrong. Please try again.');
+  }
+
+  updateCost();
+});
+
+function renderMatchResult(result) {
+  const score = result.overall_score;
+  const circumference = 2 * Math.PI * 50;
+  const offset = circumference - (score / 100) * circumference;
+  const color = score >= 75 ? '#059669' : score >= 50 ? '#d97706' : '#dc2626';
+
+  let html = `
+    <div class="bg-white rounded-2xl border border-surface-200 p-6 slide-up">
+      <h3 class="text-lg font-semibold text-slate-900 mb-4">Match Analysis</h3>
+      <div class="flex items-center gap-6 mb-6">
+        <div class="relative w-28 h-28 flex-shrink-0">
+          <svg class="w-28 h-28 -rotate-90" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#e2e8f0" stroke-width="8"/>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="${color}" stroke-width="8"
+                    stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
+                    stroke-linecap="round" class="score-ring"/>
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span class="text-2xl font-semibold" style="color:${color}">${score}%</span>
+            <span class="text-xs text-slate-400">match</span>
+          </div>
+        </div>
+        <div>
+          <span class="inline-block text-xs font-medium px-2.5 py-1 rounded-full mb-2 ${
+            result.recommendation === 'strong_match' ? 'bg-emerald-50 text-emerald-700' :
+            result.recommendation === 'good_match' ? 'bg-blue-50 text-blue-700' :
+            result.recommendation === 'partial_match' ? 'bg-amber-50 text-amber-700' :
+            'bg-red-50 text-red-700'
+          }">${result.recommendation.replace('_', ' ').toUpperCase()}</span>
+          ${result.key_strengths.length > 0 ? `<p class="text-sm text-slate-600"><span class="font-medium text-slate-700">Strengths:</span> ${result.key_strengths.join(', ')}</p>` : ''}
+          ${result.key_gaps.length > 0 ? `<p class="text-sm text-slate-500 mt-1"><span class="font-medium text-slate-600">Gaps:</span> ${result.key_gaps.join(', ')}</p>` : ''}
+        </div>
+      </div>`;
+
+  // Category breakdown
+  const bd = result.breakdown;
+  const cats = [
+    { name: 'Must-have skills', data: bd.must_have_skills },
+    { name: 'Experience', data: bd.experience },
+    { name: 'Good-to-have', data: bd.good_to_have },
+    { name: 'Role alignment', data: bd.role_alignment },
+    { name: 'Soft skills', data: bd.soft_skills },
+    { name: 'Architecture depth', data: bd.architecture_depth }
+  ];
+
+  html += '<div class="space-y-3">';
+  for (const cat of cats) {
+    const s = cat.data.score;
+    const barColor = s >= 75 ? 'bg-emerald-500' : s >= 50 ? 'bg-amber-500' : 'bg-red-400';
+    html += `
+      <div>
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-slate-600">${cat.name} <span class="text-slate-400">(${cat.data.weight})</span></span>
+          <span class="font-medium text-slate-700">${s}%</span>
+        </div>
+        <div class="h-2 bg-surface-100 rounded-full overflow-hidden">
+          <div class="${barColor} h-full rounded-full transition-all duration-700" style="width:${s}%"></div>
+        </div>
+      </div>`;
+  }
+  html += '</div>';
+
+  // Matched / missing skills
+  if (bd.must_have_skills?.matched?.length > 0) {
+    html += `<div class="mt-4"><span class="text-xs font-medium text-slate-500">Matched skills:</span><div class="flex flex-wrap gap-1.5 mt-1">`;
+    for (const s of bd.must_have_skills.matched) {
+      html += `<span class="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">${s}</span>`;
+    }
+    html += '</div></div>';
+  }
+  if (bd.must_have_skills?.missing?.length > 0) {
+    html += `<div class="mt-3"><span class="text-xs font-medium text-slate-500">Skills to highlight:</span><div class="flex flex-wrap gap-1.5 mt-1">`;
+    for (const s of bd.must_have_skills.missing) {
+      html += `<span class="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded">${s}</span>`;
+    }
+    html += '</div></div>';
+  }
+
+  // Suggestions
+  if (result.suggestions?.length > 0) {
+    html += '<div class="mt-4 p-3 bg-blue-50 rounded-lg"><p class="text-xs font-medium text-blue-800 mb-1">Suggestions</p>';
+    for (const s of result.suggestions) {
+      html += `<p class="text-xs text-blue-700 mt-0.5">• ${s}</p>`;
+    }
+    html += '</div>';
+  }
+
+  html += `
+      <div class="mt-5 text-center">
+        <button onclick="hideInterestForm()" class="text-sm text-brand-600 hover:text-brand-700 font-medium">← Continue chatting</button>
+      </div>
+    </div>`;
+  return html;
+}
+
+async function updateCost() {
+  try {
+    const res = await fetch('/api/usage');
+    const data = await res.json();
+    const badge = document.getElementById('cost-badge');
+    if (badge) {
+      badge.textContent = `$${data.estimated_cost_usd.toFixed(4)} spent`;
+      badge.classList.remove('hidden');
+    }
+  } catch(e) {}
+}
+</script>
+{% endblock %}
