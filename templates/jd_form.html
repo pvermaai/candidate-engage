@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}Create Job Description — Wissen Recruit AI{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-900">Create Job Description</h1>
+      <p class="text-sm text-slate-500 mt-1">Add a new role that candidates can explore and apply for</p>
+    </div>
+    <a href="/admin/jds" class="text-sm text-brand-600 hover:text-brand-700 font-medium">&larr; All Roles</a>
+  </div>
+
+  <form id="jd-form" class="space-y-6">
+    <!-- Basic Info -->
+    <div class="bg-white rounded-2xl border border-surface-200 p-6">
+      <h2 class="text-base font-semibold text-slate-800 mb-4">Basic Information</h2>
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">Job Title *</label>
+          <input type="text" name="title" required placeholder="e.g., Senior Python Developer"
+                 class="w-full border border-surface-200 rounded-lg px-3 py-2.5 text-sm bg-surface-50 focus:border-brand-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">Location *</label>
+          <input type="text" name="location" required placeholder="e.g., Bangalore / Mumbai"
+                 class="w-full border border-surface-200 rounded-lg px-3 py-2.5 text-sm bg-surface-50 focus:border-brand-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">Work Mode *</label>
+          <select name="mode" required
+                  class="w-full border border-surface-200 rounded-lg px-3 py-2.5 text-sm bg-surface-50 focus:border-brand-500">
+            <option value="Hybrid">Hybrid</option>
+            <option value="Remote">Remote</option>
+            <option value="Onsite">Onsite</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">Experience Label *</label>
+          <input type="text" name="experience" required placeholder="e.g., 5 to 8 years"
+                 class="w-full border border-surface-200 rounded-lg px-3 py-2.5 text-sm bg-surface-50 focus:border-brand-500">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">Min Years *</label>
+            <input type="number" name="experience_min" required min="0" max="50" placeholder="5"
+                   class="w-full border border-surface-200 rounded-lg px-3 py-2.5 text-sm bg-surface-50 focus:border-brand-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">Max Years</label>
+            <input type="number" name="experience_max" min="0" max="50" placeholder="8"
+                   class="w-full border border-surface-200 rounded-lg px-3 py-2.5 text-sm bg-surface-50 focus:border-brand-500">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">Department</label>
+          <input type="text" name="department" value="Product Engineering"
+                 class="w-full border border-surface-200 rounded-lg px-3 py-2.5 text-sm bg-surface-50 focus:border-brand-500">
+        </div>
+      </div>
+    </div>
+
+    <!-- Skills -->
+    <div class="bg-white rounded-2xl border border-surface-200 p-6">
+      <h2 class="text-base font-semibold text-slate-800 mb-4">Skills</h2>
+
+      <div class="space-y-5">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">Must-Have Skills * <span class="text-slate-400 font-normal">(press Enter or comma to add)</span></label>
+          <div class="tag-input-wrap border border-surface-200 rounded-lg bg-surface-50 px-3 py-2 flex flex-wrap gap-1.5 min-h-[42px] focus-within:shadow-[0_0_0_2px_#2563eb33]"
+               onclick="this.querySelector('input').focus()">
+            <input type="text" data-target="must_have" placeholder="e.g., Python, Django..."
+                   class="flex-1 min-w-[120px] text-sm bg-transparent border-none outline-none py-0.5"
+                   onkeydown="handleTagKey(event)">
+          </div>
+          <div id="tags-must_have" class="hidden"></div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">Good-to-Have Skills <span class="text-slate-400 font-normal">(press Enter or comma to add)</span></label>
+          <div class="tag-input-wrap border border-surface-200 rounded-lg bg-surface-50 px-3 py-2 flex flex-wrap gap-1.5 min-h-[42px] focus-within:shadow-[0_0_0_2px_#2563eb33]"
+               onclick="this.querySelector('input').focus()">
+            <input type="text" data-target="good_to_have" placeholder="e.g., Docker, Kubernetes..."
+                   class="flex-1 min-w-[120px] text-sm bg-transparent border-none outline-none py-0.5"
+                   onkeydown="handleTagKey(event)">
+          </div>
+          <div id="tags-good_to_have" class="hidden"></div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">Soft Skills <span class="text-slate-400 font-normal">(press Enter or comma to add)</span></label>
+          <div class="tag-input-wrap border border-surface-200 rounded-lg bg-surface-50 px-3 py-2 flex flex-wrap gap-1.5 min-h-[42px] focus-within:shadow-[0_0_0_2px_#2563eb33]"
+               onclick="this.querySelector('input').focus()">
+            <input type="text" data-target="soft_skills" placeholder="e.g., Leadership, Communication..."
+                   class="flex-1 min-w-[120px] text-sm bg-transparent border-none outline-none py-0.5"
+                   onkeydown="handleTagKey(event)">
+          </div>
+          <div id="tags-soft_skills" class="hidden"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Responsibilities -->
+    <div class="bg-white rounded-2xl border border-surface-200 p-6">
+      <h2 class="text-base font-semibold text-slate-800 mb-4">Key Responsibilities</h2>
+      <label class="block text-xs font-medium text-slate-500 mb-1.5">One responsibility per line</label>
+      <textarea name="responsibilities" rows="6"
+                placeholder="Design and develop scalable applications&#10;Collaborate with cross-functional teams&#10;Conduct code reviews and mentoring"
+                class="w-full border border-surface-200 rounded-lg px-3 py-2.5 text-sm bg-surface-50 focus:border-brand-500 leading-relaxed"></textarea>
+    </div>
+
+    <!-- Submit -->
+    <div class="flex items-center gap-4">
+      <button type="submit" id="submit-btn"
+              class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-8 py-3 rounded-xl transition text-sm">
+        Create Job Description
+      </button>
+      <span id="submit-status" class="text-sm hidden"></span>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const tagData = { must_have: [], good_to_have: [], soft_skills: [] };
+
+function handleTagKey(e) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const input = e.target;
+    const target = input.dataset.target;
+    const raw = input.value.replace(/,/g, '').trim();
+    if (raw) {
+      addTag(target, raw, input.closest('.tag-input-wrap'));
+      input.value = '';
+    }
+  }
+  if (e.key === 'Backspace' && !e.target.value) {
+    const target = e.target.dataset.target;
+    if (tagData[target].length > 0) {
+      removeTag(target, tagData[target].length - 1, e.target.closest('.tag-input-wrap'));
+    }
+  }
+}
+
+function addTag(target, value, wrap) {
+  if (tagData[target].includes(value)) return;
+  tagData[target].push(value);
+  renderTags(target, wrap);
+}
+
+function removeTag(target, idx, wrap) {
+  tagData[target].splice(idx, 1);
+  renderTags(target, wrap);
+}
+
+function renderTags(target, wrap) {
+  const existing = wrap.querySelectorAll('.tag-chip');
+  existing.forEach(el => el.remove());
+  const input = wrap.querySelector('input');
+  tagData[target].forEach((val, idx) => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium';
+    chip.innerHTML = `${escapeHtml(val)}<button type="button" class="hover:text-red-600 ml-0.5" onclick="removeTag('${target}',${idx},this.closest('.tag-input-wrap'))">&times;</button>`;
+    wrap.insertBefore(chip, input);
+  });
+}
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+document.getElementById('jd-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const form = this;
+  const btn = document.getElementById('submit-btn');
+  const status = document.getElementById('submit-status');
+
+  const title = form.title.value.trim();
+  const responsibilities = form.responsibilities.value.trim()
+    .split('\n').map(s => s.trim()).filter(Boolean);
+
+  if (tagData.must_have.length === 0) {
+    alert('Please add at least one must-have skill.');
+    return;
+  }
+
+  const payload = {
+    title: title,
+    location: form.location.value.trim(),
+    mode: form.mode.value,
+    experience: form.experience.value.trim(),
+    experience_min: parseInt(form.experience_min.value) || 0,
+    experience_max: form.experience_max.value ? parseInt(form.experience_max.value) : null,
+    department: form.department.value.trim(),
+    must_have: tagData.must_have,
+    good_to_have: tagData.good_to_have,
+    soft_skills: tagData.soft_skills,
+    responsibilities: responsibilities,
+  };
+
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+  status.classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/admin/jds', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      status.textContent = data.error;
+      status.className = 'text-sm text-red-600';
+      status.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Create Job Description';
+      return;
+    }
+
+    status.innerHTML = `Job Description created! <a href="/chat/${data.id}" class="text-brand-600 underline">View it live</a> or <a href="/admin/jds" class="text-brand-600 underline">see all roles</a>`;
+    status.className = 'text-sm text-emerald-700';
+    status.classList.remove('hidden');
+    btn.textContent = 'Created!';
+  } catch (err) {
+    status.textContent = 'Something went wrong. Please try again.';
+    status.className = 'text-sm text-red-600';
+    status.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Create Job Description';
+  }
+});
+</script>
+{% endblock %}

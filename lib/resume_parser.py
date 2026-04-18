@@ -5,10 +5,15 @@ Resume parser — two-stage pipeline:
 """
 
 import json
+import logging
 import pdfplumber
 import anthropic
 from lib.prompts import RESUME_EXTRACTION_PROMPT
 from lib.database import log_api_usage
+
+logger = logging.getLogger(__name__)
+
+MAX_RESUME_CHARS = 6000
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
@@ -26,8 +31,13 @@ def extract_profile(resume_text: str) -> dict:
     """Use Claude to extract a structured profile from resume text."""
     client = anthropic.Anthropic()
 
-    # Truncate very long resumes to save tokens
-    truncated = resume_text[:6000] if len(resume_text) > 6000 else resume_text
+    truncated = resume_text
+    if len(resume_text) > MAX_RESUME_CHARS:
+        truncated = resume_text[:MAX_RESUME_CHARS]
+        logger.warning(
+            "Resume text truncated from %d to %d chars — some content may be lost",
+            len(resume_text), MAX_RESUME_CHARS
+        )
 
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
@@ -48,7 +58,6 @@ def extract_profile(resume_text: str) -> dict:
 
     raw = response.content[0].text.strip()
 
-    # Clean potential markdown fences
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
     if raw.endswith("```"):
@@ -58,6 +67,7 @@ def extract_profile(resume_text: str) -> dict:
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
+        logger.error("Failed to parse LLM resume extraction response: %s", raw[:200])
         return {
             "years_of_experience": None,
             "current_role": None,
@@ -69,8 +79,10 @@ def extract_profile(resume_text: str) -> dict:
 
 def parse_resume(pdf_path: str) -> tuple[str, dict]:
     """Full pipeline: PDF → text → structured profile."""
+    logger.info("Parsing resume: %s", pdf_path)
     resume_text = extract_text_from_pdf(pdf_path)
     if not resume_text.strip():
+        logger.warning("No text extracted from PDF: %s", pdf_path)
         return "", {"parse_error": "No text could be extracted from the PDF"}
     profile = extract_profile(resume_text)
     return resume_text, profile

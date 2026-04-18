@@ -6,12 +6,39 @@ and behavioral rails to prevent hallucination.
 
 from lib.jds import COMPANY_CONTEXT
 
+HINT_CONTEXT = {
+    "interview_process": (
+        "The candidate is asking about the interview process. Share general information: "
+        "Wissen typically has a multi-stage process including technical assessments, "
+        "system design discussions, and cultural fit conversations. Specific details "
+        "vary by role and should be confirmed with the recruiting team."
+    ),
+    "joining": (
+        "The candidate is asking about joining timelines. General notice period "
+        "discussions happen during the offer stage. Encourage them to express interest "
+        "to get the process started."
+    ),
+    "work_mode": (
+        "The candidate is asking about work mode. Share the work mode stated in the JD "
+        "confidently, as it is directly stated in the role description."
+    ),
+}
 
-def build_chat_system_prompt(jd: dict) -> str:
+
+def build_chat_system_prompt(jd: dict, hints: list[str] = None) -> str:
     must_have = "\n".join(f"  • {s}" for s in jd["must_have"])
     good_to_have = "\n".join(f"  • {s}" for s in jd["good_to_have"])
     soft_skills = "\n".join(f"  • {s}" for s in jd["soft_skills"])
     responsibilities = "\n".join(f"  • {r}" for r in jd["responsibilities"])
+
+    hint_section = ""
+    if hints:
+        hint_lines = [HINT_CONTEXT[h] for h in hints if h in HINT_CONTEXT]
+        if hint_lines:
+            hint_section = (
+                "\n\n═══ CONTEXTUAL GUIDANCE (for this specific question) ═══\n"
+                + "\n".join(f"- {line}" for line in hint_lines)
+            )
 
     return f"""You are Wissen Recruit AI — a helpful, professional, and friendly recruiting assistant for Wissen Technology. You help candidates learn about a specific job opening.
 
@@ -57,7 +84,7 @@ Key Responsibilities:
 
 6. ENGAGEMENT: After answering, occasionally (not every response) suggest a related topic or gently encourage the candidate to express interest if they seem engaged. Do not be pushy.
 
-7. FIRST MESSAGE: If the candidate's first message is a greeting or general opener, welcome them warmly, briefly introduce the role, and invite them to ask questions."""
+7. FIRST MESSAGE: If the candidate's first message is a greeting or general opener, welcome them warmly, briefly introduce the role, and invite them to ask questions.{hint_section}"""
 
 
 RESUME_EXTRACTION_PROMPT = """You are a precise resume parser. Extract structured information from the resume text below.

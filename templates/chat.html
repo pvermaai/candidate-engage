@@ -159,7 +159,7 @@
 
             <!-- Resume Upload -->
             <div>
-              <label class="block text-xs font-medium text-slate-500 mb-1.5">Resume (PDF) *</label>
+              <label class="block text-xs font-medium text-slate-500 mb-1.5">Resume (PDF)</label>
               <div id="drop-zone"
                    class="border-2 border-dashed border-surface-300 rounded-xl p-6 text-center cursor-pointer hover:border-brand-500 hover:bg-blue-50/30 transition"
                    onclick="document.getElementById('resume-input').click()"
@@ -209,7 +209,10 @@
 {% block scripts %}
 <script>
 const JD_ID = "{{ jd.id }}";
+const SESSION_ID = (crypto.randomUUID ? crypto.randomUUID()
+                    : 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9));
 let conversationHistory = [];
+let droppedFile = null;
 
 // ── Chat Logic ───────────────────────────────────────────────
 async function sendMessage() {
@@ -229,6 +232,7 @@ async function sendMessage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         jd_id: JD_ID,
+        session_id: SESSION_ID,
         messages: conversationHistory.slice(-10),
         message: msg
       })
@@ -375,6 +379,12 @@ function hideInterestForm() {
 function handleFileSelect(input) {
   if (input.files.length > 0) {
     const file = input.files[0];
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File too large. Maximum size is 10 MB.');
+      input.value = '';
+      return;
+    }
+    droppedFile = null;
     document.getElementById('drop-label').classList.add('hidden');
     document.getElementById('file-selected').classList.remove('hidden');
     document.getElementById('file-selected').textContent = '✓ ' + file.name;
@@ -387,8 +397,17 @@ function handleDrop(e) {
   zone.classList.remove('border-brand-500', 'bg-blue-50/30');
   const files = e.dataTransfer.files;
   if (files.length > 0 && files[0].name.toLowerCase().endsWith('.pdf')) {
-    document.getElementById('resume-input').files = files;
-    handleFileSelect(document.getElementById('resume-input'));
+    const file = files[0];
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File too large. Maximum size is 10 MB.');
+      return;
+    }
+    droppedFile = file;
+    document.getElementById('drop-label').classList.add('hidden');
+    document.getElementById('file-selected').classList.remove('hidden');
+    document.getElementById('file-selected').textContent = '✓ ' + file.name;
+  } else if (files.length > 0) {
+    alert('Please upload a PDF file.');
   }
 }
 
@@ -397,6 +416,10 @@ document.getElementById('interest-form').addEventListener('submit', async functi
 
   const form = this;
   const formData = new FormData(form);
+  formData.append('session_id', SESSION_ID);
+  if (droppedFile) {
+    formData.set('resume', droppedFile, droppedFile.name);
+  }
 
   // Show loading
   form.classList.add('hidden');
@@ -404,9 +427,21 @@ document.getElementById('interest-form').addEventListener('submit', async functi
 
   try {
     const res = await fetch('/api/interest', { method: 'POST', body: formData });
-    const data = await res.json();
 
     document.getElementById('form-loading').classList.add('hidden');
+
+    if (!res.ok) {
+      let errMsg = `Server error (${res.status})`;
+      try {
+        const errData = await res.json();
+        if (errData.error) errMsg = errData.error;
+      } catch (_) {}
+      form.classList.remove('hidden');
+      alert('Error: ' + errMsg);
+      return;
+    }
+
+    const data = await res.json();
 
     if (data.error) {
       form.classList.remove('hidden');
@@ -533,16 +568,5 @@ function renderMatchResult(result) {
   return html;
 }
 
-async function updateCost() {
-  try {
-    const res = await fetch('/api/usage');
-    const data = await res.json();
-    const badge = document.getElementById('cost-badge');
-    if (badge) {
-      badge.textContent = `$${data.estimated_cost_usd.toFixed(4)} spent`;
-      badge.classList.remove('hidden');
-    }
-  } catch(e) {}
-}
 </script>
 {% endblock %}

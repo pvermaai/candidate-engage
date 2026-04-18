@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% block title %}Resume Analyzer — Wissen Recruit AI{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-900">Resume Analyzer</h1>
+      <p class="text-sm text-slate-500 mt-1">Upload a resume and match it against any open role</p>
+    </div>
+    <div class="flex gap-3">
+      <a href="/admin" class="text-sm text-brand-600 hover:text-brand-700 font-medium">&larr; Dashboard</a>
+    </div>
+  </div>
+
+  <div class="grid lg:grid-cols-5 gap-6">
+
+    <!-- Left: Upload Form -->
+    <div class="lg:col-span-2">
+      <div class="bg-white rounded-2xl border border-surface-200 p-6 sticky top-6">
+        <h2 class="text-lg font-semibold text-slate-900 mb-5">Upload &amp; Analyze</h2>
+
+        <form id="analyze-form" enctype="multipart/form-data" class="space-y-5">
+          <!-- JD Selection -->
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">Select Job Role *</label>
+            <select name="jd_id" required
+                    class="w-full border border-surface-200 rounded-lg px-3 py-2.5 text-sm bg-surface-50 focus:border-brand-500">
+              <option value="">Choose a role...</option>
+              {% for jd in jds %}
+              <option value="{{ jd.id }}">{{ jd.title }} — {{ jd.location }} ({{ jd.experience }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Resume Upload -->
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">Resume (PDF) *</label>
+            <div id="drop-zone"
+                 class="border-2 border-dashed border-surface-300 rounded-xl p-6 text-center cursor-pointer hover:border-brand-500 hover:bg-blue-50/30 transition"
+                 onclick="document.getElementById('resume-input').click()"
+                 ondragover="event.preventDefault(); this.classList.add('border-brand-500','bg-blue-50/30')"
+                 ondragleave="this.classList.remove('border-brand-500','bg-blue-50/30')"
+                 ondrop="handleDrop(event)">
+              <div id="drop-label">
+                <div class="text-slate-400 mb-1 text-2xl">&#128196;</div>
+                <p class="text-sm text-slate-500">Drop your resume here or <span class="text-brand-600 font-medium">browse</span></p>
+                <p class="text-xs text-slate-400 mt-1">PDF only, up to 10 MB</p>
+              </div>
+              <div id="file-selected" class="hidden text-sm text-emerald-700 font-medium"></div>
+            </div>
+            <input type="file" id="resume-input" name="resume" accept=".pdf"
+                   class="hidden" onchange="handleFileSelect(this)" required>
+          </div>
+
+          <button type="submit" id="submit-btn"
+                  class="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-3 rounded-xl transition text-sm">
+            Analyze Resume
+          </button>
+        </form>
+
+        <!-- Loading State -->
+        <div id="form-loading" class="hidden text-center py-8">
+          <div class="inline-block w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+          <p class="text-sm text-slate-500">Parsing resume &amp; computing match...</p>
+          <p class="text-xs text-slate-400 mt-1">This may take 10–20 seconds</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="form-error" class="hidden mt-4 bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg"></div>
+      </div>
+    </div>
+
+    <!-- Right: Results -->
+    <div class="lg:col-span-3">
+      <!-- Placeholder -->
+      <div id="result-placeholder" class="bg-white rounded-2xl border border-surface-200 p-12 text-center">
+        <div class="text-4xl mb-3 text-slate-300">&#128203;</div>
+        <h3 class="text-lg font-medium text-slate-700 mb-2">No analysis yet</h3>
+        <p class="text-sm text-slate-400">Select a job role, upload a resume, and click Analyze to see the match profile.</p>
+      </div>
+
+      <!-- Results (hidden until analysis) -->
+      <div id="result-panel" class="hidden space-y-4 slide-up"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let droppedFile = null;
+
+function handleFileSelect(input) {
+  if (input.files.length > 0) {
+    const file = input.files[0];
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File too large. Maximum size is 10 MB.');
+      input.value = '';
+      return;
+    }
+    droppedFile = null;
+    document.getElementById('drop-label').classList.add('hidden');
+    document.getElementById('file-selected').classList.remove('hidden');
+    document.getElementById('file-selected').textContent = '\u2713 ' + file.name;
+  }
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  const zone = document.getElementById('drop-zone');
+  zone.classList.remove('border-brand-500', 'bg-blue-50/30');
+  const files = e.dataTransfer.files;
+  if (files.length > 0 && files[0].name.toLowerCase().endsWith('.pdf')) {
+    const file = files[0];
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File too large. Maximum size is 10 MB.');
+      return;
+    }
+    droppedFile = file;
+    document.getElementById('drop-label').classList.add('hidden');
+    document.getElementById('file-selected').classList.remove('hidden');
+    document.getElementById('file-selected').textContent = '\u2713 ' + file.name;
+  } else if (files.length > 0) {
+    alert('Please upload a PDF file.');
+  }
+}
+
+function resetUpload() {
+  droppedFile = null;
+  document.getElementById('resume-input').value = '';
+  document.getElementById('drop-label').classList.remove('hidden');
+  document.getElementById('file-selected').classList.add('hidden');
+}
+
+document.getElementById('analyze-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const form = this;
+  const formData = new FormData(form);
+  if (droppedFile) {
+    formData.set('resume', droppedFile, droppedFile.name);
+  }
+
+  const errDiv = document.getElementById('form-error');
+  errDiv.classList.add('hidden');
+
+  form.classList.add('hidden');
+  document.getElementById('form-loading').classList.remove('hidden');
+
+  try {
+    const res = await fetch('/api/admin/analyze', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    document.getElementById('form-loading').classList.add('hidden');
+    form.classList.remove('hidden');
+
+    if (data.error) {
+      errDiv.textContent = data.error;
+      errDiv.classList.remove('hidden');
+      return;
+    }
+
+    document.getElementById('result-placeholder').classList.add('hidden');
+    const panel = document.getElementById('result-panel');
+    panel.classList.remove('hidden');
+    panel.innerHTML = renderFullResult(data);
+    resetUpload();
+  } catch (err) {
+    document.getElementById('form-loading').classList.add('hidden');
+    form.classList.remove('hidden');
+    errDiv.textContent = 'Something went wrong. Please try again.';
+    errDiv.classList.remove('hidden');
+  }
+
+  updateCost();
+});
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+function renderFullResult(data) {
+  const result = data.match_result;
+  const profile = data.profile;
+  const score = result.overall_score;
+  const circumference = 2 * Math.PI * 50;
+  const offset = circumference - (score / 100) * circumference;
+  const color = score >= 75 ? '#059669' : score >= 50 ? '#d97706' : '#dc2626';
+
+  let html = '';
+
+  // Score Overview Card
+  html += `
+  <div class="bg-white rounded-2xl border border-surface-200 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-semibold text-slate-900">Match Analysis</h3>
+      <span class="text-xs text-slate-400">vs ${escapeHtml(data.jd_title)}</span>
+    </div>
+    <div class="flex items-center gap-6 mb-6">
+      <div class="relative w-28 h-28 flex-shrink-0">
+        <svg class="w-28 h-28 -rotate-90" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#e2e8f0" stroke-width="8"/>
+          <circle cx="60" cy="60" r="50" fill="none" stroke="${color}" stroke-width="8"
+                  stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
+                  stroke-linecap="round" class="score-ring"/>
+        </svg>
+        <div class="absolute inset-0 flex flex-col items-center justify-center">
+          <span class="text-2xl font-semibold" style="color:${color}">${score}%</span>
+          <span class="text-xs text-slate-400">match</span>
+        </div>
+      </div>
+      <div class="flex-1">
+        <span class="inline-block text-xs font-medium px-2.5 py-1 rounded-full mb-2 ${
+          result.recommendation === 'strong_match' ? 'bg-emerald-50 text-emerald-700' :
+          result.recommendation === 'good_match' ? 'bg-blue-50 text-blue-700' :
+          result.recommendation === 'partial_match' ? 'bg-amber-50 text-amber-700' :
+          'bg-red-50 text-red-700'
+        }">${escapeHtml((result.recommendation || '').replace(/_/g, ' ').toUpperCase())}</span>
+        ${result.key_strengths && result.key_strengths.length > 0
+          ? `<p class="text-sm text-slate-600"><span class="font-medium text-slate-700">Strengths:</span> ${escapeHtml(result.key_strengths.join(', '))}</p>` : ''}
+        ${result.key_gaps && result.key_gaps.length > 0
+          ? `<p class="text-sm text-slate-500 mt-1"><span class="font-medium text-slate-600">Gaps:</span> ${escapeHtml(result.key_gaps.join(', '))}</p>` : ''}
+      </div>
+    </div>`;
+
+  // Category breakdown bars
+  const bd = result.breakdown;
+  const cats = [
+    { name: 'Must-have skills', data: bd.must_have_skills },
+    { name: 'Experience', data: bd.experience },
+    { name: 'Good-to-have', data: bd.good_to_have },
+    { name: 'Role alignment', data: bd.role_alignment },
+    { name: 'Soft skills', data: bd.soft_skills },
+    { name: 'Architecture depth', data: bd.architecture_depth }
+  ];
+
+  html += '<div class="space-y-3">';
+  for (const cat of cats) {
+    const s = cat.data.score;
+    const barColor = s >= 75 ? 'bg-emerald-500' : s >= 50 ? 'bg-amber-500' : 'bg-red-400';
+    html += `
+      <div>
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-slate-600">${escapeHtml(cat.name)} <span class="text-slate-400">(${escapeHtml(cat.data.weight)})</span></span>
+          <span class="font-medium text-slate-700">${s}%</span>
+        </div>
+        <div class="h-2 bg-surface-100 rounded-full overflow-hidden">
+          <div class="${barColor} h-full rounded-full transition-all duration-700" style="width:${s}%"></div>
+        </div>
+      </div>`;
+  }
+  html += '</div>';
+
+  // Matched & missing skills
+  if (bd.must_have_skills?.matched?.length > 0) {
+    html += `<div class="mt-4"><span class="text-xs font-medium text-slate-500">Matched skills:</span><div class="flex flex-wrap gap-1.5 mt-1">`;
+    for (const s of bd.must_have_skills.matched) html += `<span class="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">${escapeHtml(s)}</span>`;
+    html += '</div></div>';
+  }
+  if (bd.must_have_skills?.missing?.length > 0) {
+    html += `<div class="mt-3"><span class="text-xs font-medium text-slate-500">Missing skills:</span><div class="flex flex-wrap gap-1.5 mt-1">`;
+    for (const s of bd.must_have_skills.missing) html += `<span class="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded">${escapeHtml(s)}</span>`;
+    html += '</div></div>';
+  }
+
+  // Suggestions
+  if (result.suggestions?.length > 0) {
+    html += '<div class="mt-4 p-3 bg-blue-50 rounded-lg"><p class="text-xs font-medium text-blue-800 mb-1">Suggestions</p>';
+    for (const s of result.suggestions) html += `<p class="text-xs text-blue-700 mt-0.5">${escapeHtml('\u2022 ' + s)}</p>`;
+    html += '</div>';
+  }
+
+  html += '</div>';
+
+  // Extracted Profile Card
+  html += `
+  <div class="bg-white rounded-2xl border border-surface-200 p-6">
+    <h3 class="text-lg font-semibold text-slate-900 mb-4">Extracted Profile</h3>
+    <div class="grid sm:grid-cols-2 gap-x-8 gap-y-1">`;
+
+  if (profile.years_of_experience)
+    html += `<p class="text-sm text-slate-500">Experience: <span class="text-slate-800 font-medium">${profile.years_of_experience} years</span></p>`;
+  if (profile.current_role)
+    html += `<p class="text-sm text-slate-500">Current Role: <span class="text-slate-800 font-medium">${escapeHtml(profile.current_role)}</span></p>`;
+  if (profile.current_company)
+    html += `<p class="text-sm text-slate-500">Company: <span class="text-slate-800 font-medium">${escapeHtml(profile.current_company)}</span></p>`;
+  if (profile.location)
+    html += `<p class="text-sm text-slate-500">Location: <span class="text-slate-800 font-medium">${escapeHtml(profile.location)}</span></p>`;
+  if (profile.education)
+    html += `<p class="text-sm text-slate-500">Education: <span class="text-slate-800 font-medium">${escapeHtml(profile.education)}</span></p>`;
+
+  html += '</div>';
+
+  // Skills categories
+  const skills = profile.skills || {};
+  const skillEntries = Object.entries(skills).filter(([_, items]) => items && items.length > 0);
+  if (skillEntries.length > 0) {
+    html += '<div class="mt-4 space-y-3">';
+    for (const [cat, items] of skillEntries) {
+      const label = cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      html += `<div>
+        <span class="text-xs font-medium text-slate-500">${escapeHtml(label)}:</span>
+        <div class="flex flex-wrap gap-1.5 mt-1">`;
+      for (const s of items) html += `<span class="text-xs bg-surface-100 text-slate-700 px-2 py-0.5 rounded">${escapeHtml(s)}</span>`;
+      html += '</div></div>';
+    }
+    html += '</div>';
+  }
+
+  // Extra signals
+  const signals = [
+    { key: 'architecture_signals', label: 'Architecture Signals', style: 'bg-violet-50 text-violet-700' },
+    { key: 'soft_skills_signals', label: 'Soft Skills', style: 'bg-blue-50 text-blue-700' },
+    { key: 'ownership_signals', label: 'Ownership Signals', style: 'bg-amber-50 text-amber-700' },
+    { key: 'domain_hints', label: 'Domain Experience', style: 'bg-emerald-50 text-emerald-700' },
+    { key: 'certifications', label: 'Certifications', style: 'bg-indigo-50 text-indigo-700' },
+  ];
+
+  for (const sig of signals) {
+    const items = profile[sig.key];
+    if (items && items.length > 0) {
+      html += `<div class="mt-3">
+        <span class="text-xs font-medium text-slate-500">${escapeHtml(sig.label)}:</span>
+        <div class="flex flex-wrap gap-1.5 mt-1">`;
+      for (const s of items) html += `<span class="text-xs ${sig.style} px-2 py-0.5 rounded">${escapeHtml(s)}</span>`;
+      html += '</div></div>';
+    }
+  }
+
+  html += '</div>';
+
+  return html;
+}
+</script>
+{% endblock %}

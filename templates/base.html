@@ -88,6 +88,8 @@
       <nav class="flex items-center gap-4 text-sm">
         <a href="/" class="text-blue-200 hover:text-white transition">Roles</a>
         <a href="/admin" class="text-blue-200 hover:text-white transition">Admin</a>
+        <a href="/admin/jds" class="text-blue-200 hover:text-white transition">Manage JDs</a>
+        <a href="/admin/analyze" class="text-blue-200 hover:text-white transition">Analyze</a>
         <span id="cost-badge" class="hidden text-xs bg-white/10 px-2.5 py-1 rounded-full font-mono"></span>
       </nav>
     </div>
@@ -104,14 +106,15 @@
   </footer>
 
   <script>
-    // Fetch and display API cost in header
     async function updateCost() {
       try {
         const res = await fetch('/api/usage');
         const data = await res.json();
         const badge = document.getElementById('cost-badge');
-        badge.textContent = `$${data.estimated_cost_usd.toFixed(4)} spent`;
-        badge.classList.remove('hidden');
+        if (badge) {
+          badge.textContent = `$${data.estimated_cost_usd.toFixed(4)} spent`;
+          badge.classList.remove('hidden');
+        }
       } catch(e) {}
     }
     updateCost();

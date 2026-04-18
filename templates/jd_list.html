@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Manage Roles — Wissen Recruit AI{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-900">Manage Job Roles</h1>
+      <p class="text-sm text-slate-500 mt-1">View all roles and add new job descriptions</p>
+    </div>
+    <div class="flex gap-3">
+      <a href="/admin" class="text-sm text-slate-500 hover:text-slate-700 font-medium">&larr; Dashboard</a>
+      <a href="/admin/jds/new"
+         class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-4 py-2.5 rounded-xl transition text-sm">
+        + New Role
+      </a>
+    </div>
+  </div>
+
+  <!-- Built-in Roles -->
+  <div class="mb-8">
+    <h2 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-3">Built-in Roles</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      {% for jd in builtin %}
+      <div class="bg-white rounded-2xl border border-surface-200 p-5">
+        <div class="flex items-start justify-between mb-3">
+          <h3 class="text-lg font-semibold text-slate-900">{{ jd.title }}</h3>
+          <span class="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">Built-in</span>
+        </div>
+        <div class="flex flex-wrap gap-2 text-xs mb-3">
+          <span class="bg-surface-100 text-slate-600 px-2.5 py-1 rounded-full">{{ jd.location }}</span>
+          <span class="bg-surface-100 text-slate-600 px-2.5 py-1 rounded-full">{{ jd.mode }}</span>
+          <span class="bg-surface-100 text-slate-600 px-2.5 py-1 rounded-full">{{ jd.experience }}</span>
+        </div>
+        <div class="flex flex-wrap gap-1 mb-3">
+          {% for skill in jd.must_have[:6] %}
+          <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{{ skill }}</span>
+          {% endfor %}
+          {% if jd.must_have|length > 6 %}
+          <span class="text-xs text-slate-400">+{{ jd.must_have|length - 6 }} more</span>
+          {% endif %}
+        </div>
+        <a href="/chat/{{ jd.id }}" class="text-xs text-brand-600 hover:text-brand-700 font-medium">View live &rarr;</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Custom Roles -->
+  <div>
+    <h2 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-3">Custom Roles</h2>
+    {% if custom %}
+    <div class="grid md:grid-cols-2 gap-4">
+      {% for jd in custom %}
+      <div class="bg-white rounded-2xl border border-surface-200 p-5" id="jd-card-{{ jd.id }}">
+        <div class="flex items-start justify-between mb-3">
+          <h3 class="text-lg font-semibold text-slate-900">{{ jd.title }}</h3>
+          <span class="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">Custom</span>
+        </div>
+        <div class="flex flex-wrap gap-2 text-xs mb-3">
+          <span class="bg-surface-100 text-slate-600 px-2.5 py-1 rounded-full">{{ jd.location }}</span>
+          <span class="bg-surface-100 text-slate-600 px-2.5 py-1 rounded-full">{{ jd.mode }}</span>
+          <span class="bg-surface-100 text-slate-600 px-2.5 py-1 rounded-full">{{ jd.experience }}</span>
+        </div>
+        <div class="flex flex-wrap gap-1 mb-3">
+          {% for skill in jd.must_have[:6] %}
+          <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{{ skill }}</span>
+          {% endfor %}
+          {% if jd.must_have|length > 6 %}
+          <span class="text-xs text-slate-400">+{{ jd.must_have|length - 6 }} more</span>
+          {% endif %}
+        </div>
+        <div class="flex items-center gap-4">
+          <a href="/chat/{{ jd.id }}" class="text-xs text-brand-600 hover:text-brand-700 font-medium">View live &rarr;</a>
+          <button onclick="deleteJd('{{ jd.id }}')" class="text-xs text-red-500 hover:text-red-700 font-medium">Delete</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-2xl border border-surface-200 p-8 text-center">
+      <p class="text-sm text-slate-400 mb-3">No custom roles yet.</p>
+      <a href="/admin/jds/new" class="text-sm text-brand-600 hover:text-brand-700 font-medium">+ Create your first role</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function deleteJd(id) {
+  if (!confirm('Delete this job description? Candidates who already applied will keep their data.')) return;
+  try {
+    const res = await fetch('/api/admin/jds/' + id, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+    const card = document.getElementById('jd-card-' + id);
+    if (card) card.remove();
+  } catch (e) {
+    alert('Failed to delete. Please try again.');
+  }
+}
+</script>
+{% endblock %}

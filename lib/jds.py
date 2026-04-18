@@ -11,6 +11,7 @@ JDS = {
         "mode": "Hybrid",
         "experience": "12+ years",
         "experience_min": 12,
+        "experience_max": 25,
         "department": "Product Engineering",
         "must_have": [
             "Core Java",
@@ -230,13 +231,32 @@ Engineering Culture:
 """
 
 
+BUILTIN_JD_IDS = set(JDS.keys())
+
+
 def get_jd(jd_id: str) -> dict | None:
-    return JDS.get(jd_id)
+    if jd_id in JDS:
+        return JDS[jd_id]
+    from lib.database import get_db_jd
+    return get_db_jd(jd_id)
 
 
 def get_all_jds() -> list[dict]:
-    return [
+    from lib.database import get_all_db_jds
+    results = [
         {"id": jd["id"], "title": jd["title"], "location": jd["location"],
          "mode": jd["mode"], "experience": jd["experience"]}
         for jd in JDS.values()
     ]
+    for jd in get_all_db_jds():
+        results.append({
+            "id": jd["id"], "title": jd["title"], "location": jd["location"],
+            "mode": jd["mode"], "experience": jd["experience"]
+        })
+    return results
+
+
+def get_all_jds_full() -> list[dict]:
+    """Return full JD objects (for admin pages that need all fields)."""
+    from lib.database import get_all_db_jds
+    return list(JDS.values()) + get_all_db_jds()
