@@ -300,6 +300,14 @@ def _row_to_jd(row: dict) -> dict:
                 row[field] = json.loads(val)
             except (json.JSONDecodeError, TypeError):
                 row[field] = []
+        elif not isinstance(val, list):
+            row[field] = []
+
+    if row.get("experience_min") is None:
+        row["experience_min"] = 0
+    if row.get("experience_max") is None:
+        row["experience_max"] = row["experience_min"] + 5
+
     return row
 
 

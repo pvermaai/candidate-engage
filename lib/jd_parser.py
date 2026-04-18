@@ -1,11 +1,12 @@
 """
 JD document parser — extracts structured job description data from uploaded files.
 Supports PDF, Word (.docx), and plain text (.txt) formats.
-Pipeline: file → raw text → Claude structured extraction.
+Pipeline: file → raw text → sanitize → Claude structured extraction → validate.
 """
 
 import json
 import logging
+import re
 import pdfplumber
 import anthropic
 from docx import Document as DocxDocument
@@ -15,6 +16,7 @@ from lib.database import log_api_usage
 logger = logging.getLogger(__name__)
 
 MAX_JD_CHARS = 8000
+MAX_RETRIES = 2
 
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt"}
 
@@ -29,6 +31,18 @@ def allowed_jd_file(filename: str) -> bool:
 def _get_extension(filename: str) -> str:
     from os.path import splitext
     return splitext(filename.lower())[1]
+
+
+def _sanitize_text(text: str) -> str:
+    """Normalize Unicode chars that cause issues in downstream processing."""
+    text = text.replace("\u2013", "-").replace("\u2014", "-")  # en/em dash → hyphen
+    text = text.replace("\u2018", "'").replace("\u2019", "'")  # smart quotes
+    text = text.replace("\u201c", '"').replace("\u201d", '"')
+    text = text.replace("\u2192", "->")  # → arrow
+    text = text.replace("\u2022", "-")   # bullet
+    text = text.replace("\ufffd", "")    # replacement char
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", text)  # control chars
+    return text
 
 
 def extract_text_from_file(file_path: str, filename: str) -> str:
@@ -72,8 +86,44 @@ def _extract_txt(path: str) -> str:
         return f.read()
 
 
+def _strip_json_fences(text: str) -> str:
+    """Remove markdown code fences wrapping JSON."""
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    return text.strip()
+
+
+def _validate_and_normalize(parsed: dict) -> dict:
+    """Ensure all expected fields have correct types."""
+    for arr_field in ("must_have", "good_to_have", "soft_skills", "responsibilities"):
+        if not isinstance(parsed.get(arr_field), list):
+            parsed[arr_field] = []
+
+    if parsed.get("experience_min") is not None:
+        try:
+            parsed["experience_min"] = int(parsed["experience_min"])
+        except (ValueError, TypeError):
+            parsed["experience_min"] = None
+
+    if parsed.get("experience_max") is not None:
+        try:
+            parsed["experience_max"] = int(parsed["experience_max"])
+        except (ValueError, TypeError):
+            parsed["experience_max"] = None
+
+    for str_field in ("title", "location", "mode", "experience", "department"):
+        val = parsed.get(str_field)
+        if val is not None and not isinstance(val, str):
+            parsed[str_field] = str(val)
+
+    return parsed
+
+
 def extract_jd_fields(raw_text: str) -> dict:
-    """Use Claude to extract structured JD fields from raw text."""
+    """Use Claude to extract structured JD fields from raw text, with retry."""
     client = anthropic.Anthropic()
 
     truncated = raw_text
@@ -83,45 +133,51 @@ def extract_jd_fields(raw_text: str) -> dict:
             "JD text truncated from %d to %d chars", len(raw_text), MAX_JD_CHARS
         )
 
-    response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=2000,
-        temperature=0,
-        messages=[{"role": "user", "content": JD_EXTRACTION_PROMPT + truncated}],
+    last_error = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=2000,
+                temperature=0,
+                messages=[{"role": "user", "content": JD_EXTRACTION_PROMPT + truncated}],
+            )
+
+            log_api_usage(
+                "jd_extraction",
+                response.usage.input_tokens,
+                response.usage.output_tokens,
+                "claude-sonnet-4-20250514",
+            )
+
+            raw = _strip_json_fences(response.content[0].text)
+            parsed = json.loads(raw)
+            return _validate_and_normalize(parsed)
+
+        except json.JSONDecodeError:
+            last_error = "AI returned an invalid response"
+            logger.warning("JD extraction attempt %d/%d: bad JSON — %s",
+                           attempt, MAX_RETRIES, raw[:200])
+        except anthropic.APIStatusError as e:
+            last_error = f"AI service error: {e.message}"
+            logger.warning("JD extraction attempt %d/%d: API error %s",
+                           attempt, MAX_RETRIES, e.status_code)
+        except anthropic.APIConnectionError:
+            last_error = "Could not reach the AI service. Check your network."
+            logger.warning("JD extraction attempt %d/%d: connection error",
+                           attempt, MAX_RETRIES)
+
+    raise ValueError(
+        f"{last_error}. Tried {MAX_RETRIES} times. Please try again or use manual entry."
     )
-
-    log_api_usage(
-        "jd_extraction",
-        response.usage.input_tokens,
-        response.usage.output_tokens,
-        "claude-sonnet-4-20250514",
-    )
-
-    raw = response.content[0].text.strip()
-    if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
-    if raw.endswith("```"):
-        raw = raw[:-3]
-    raw = raw.strip()
-
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError:
-        logger.error("Failed to parse JD extraction response: %s", raw[:300])
-        raise ValueError("Could not parse the document into structured fields. Please try manual entry.")
-
-    for arr_field in ("must_have", "good_to_have", "soft_skills", "responsibilities"):
-        if not isinstance(parsed.get(arr_field), list):
-            parsed[arr_field] = []
-
-    return parsed
 
 
 def parse_jd_document(file_path: str, filename: str) -> tuple[str, dict]:
-    """Full pipeline: file → text → structured JD fields."""
+    """Full pipeline: file → text → sanitize → structured JD fields."""
     logger.info("Parsing JD document: %s", filename)
     raw_text = extract_text_from_file(file_path, filename)
     if not raw_text.strip():
         raise ValueError("Could not extract any text from the uploaded file")
-    fields = extract_jd_fields(raw_text)
-    return raw_text, fields
+    sanitized = _sanitize_text(raw_text)
+    fields = extract_jd_fields(sanitized)
+    return sanitized, fields

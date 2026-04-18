@@ -65,16 +65,28 @@ def extract_profile(resume_text: str) -> dict:
     raw = raw.strip()
 
     try:
-        return json.loads(raw)
+        parsed = json.loads(raw)
     except json.JSONDecodeError:
         logger.error("Failed to parse LLM resume extraction response: %s", raw[:200])
         return {
             "years_of_experience": None,
             "current_role": None,
             "skills": {},
+            "soft_skills_signals": [],
+            "architecture_signals": [],
+            "ownership_signals": [],
             "parse_error": "Failed to parse LLM response",
             "raw_response": raw[:500]
         }
+
+    if not isinstance(parsed.get("skills"), dict):
+        parsed["skills"] = {}
+    for arr_field in ("soft_skills_signals", "architecture_signals",
+                      "ownership_signals", "domain_hints", "certifications"):
+        if not isinstance(parsed.get(arr_field), list):
+            parsed[arr_field] = []
+
+    return parsed
 
 
 def parse_resume(pdf_path: str) -> tuple[str, dict]:

@@ -79,25 +79,29 @@ def skill_matches(resume_skills: list[str], jd_skill: str) -> bool:
 
 def get_all_resume_skills(profile: dict) -> list[str]:
     """Flatten all skill categories from extracted profile into one list."""
-    skills = profile.get("skills", {})
+    skills = profile.get("skills") or {}
     all_skills = []
     for category_skills in skills.values():
         if isinstance(category_skills, list):
             all_skills.extend(category_skills)
-    # Add signals that may contain skill-like items
-    all_skills.extend(profile.get("architecture_signals", []))
-    all_skills.extend(profile.get("soft_skills_signals", []))
-    all_skills.extend(profile.get("ownership_signals", []))
+    all_skills.extend(profile.get("architecture_signals") or [])
+    all_skills.extend(profile.get("soft_skills_signals") or [])
+    all_skills.extend(profile.get("ownership_signals") or [])
     return all_skills
 
 
 def score_experience(candidate_years, jd: dict) -> int:
     """Score experience match (0-100)."""
+    try:
+        candidate_years = int(candidate_years) if candidate_years is not None else None
+    except (ValueError, TypeError):
+        candidate_years = None
+
     if candidate_years is None:
         return 30  # Unknown, give partial credit
 
-    min_req = jd.get("experience_min", 0)
-    max_req = jd.get("experience_max", min_req + 5)
+    min_req = int(jd.get("experience_min") or 0)
+    max_req = int(jd.get("experience_max") or (min_req + 5))
 
     if min_req <= candidate_years <= max_req:
         return 100
@@ -137,14 +141,14 @@ def score_skills(resume_skills: list[str], jd_skills: list[str]) -> tuple[int, l
 
 def score_soft_skills(profile: dict, jd: dict) -> int:
     """Score soft skills match."""
-    signals = profile.get("soft_skills_signals", [])
-    ownership = profile.get("ownership_signals", [])
+    signals = profile.get("soft_skills_signals") or []
+    ownership = profile.get("ownership_signals") or []
     all_signals = signals + ownership
 
     if not all_signals:
         return 30  # No signals found
 
-    jd_soft = jd.get("soft_skills", [])
+    jd_soft = jd.get("soft_skills") or []
     if not jd_soft:
         return 50
 
@@ -209,27 +213,27 @@ def compute_match(profile: dict, jd: dict) -> dict:
     """
     resume_skills = get_all_resume_skills(profile)
 
-    # Must-have skills
-    must_score, must_matched, must_missing = score_skills(resume_skills, jd.get("must_have", []))
+    must_score, must_matched, must_missing = score_skills(
+        resume_skills, jd.get("must_have") or [])
 
-    # Good-to-have skills
-    gth_score, gth_matched, gth_missing = score_skills(resume_skills, jd.get("good_to_have", []))
+    gth_score, gth_matched, gth_missing = score_skills(
+        resume_skills, jd.get("good_to_have") or [])
 
-    # Experience
     exp_score = score_experience(profile.get("years_of_experience"), jd)
 
-    # Soft skills
     soft_score = score_soft_skills(profile, jd)
 
-    # Architecture signals (for architect roles)
-    arch_signals = profile.get("architecture_signals", [])
+    arch_signals = profile.get("architecture_signals") or []
     arch_score = min(100, len(arch_signals) * 25) if arch_signals else 20
 
-    # LLM-assisted role alignment
     alignment = get_role_alignment(profile, jd)
-    role_score = alignment.get("role_alignment_score", 50)
+    role_score = alignment.get("role_alignment_score") or 50
+    if not isinstance(role_score, (int, float)):
+        try:
+            role_score = int(role_score)
+        except (ValueError, TypeError):
+            role_score = 50
 
-    # Weighted total
     total = (
         must_score * 0.35 +
         exp_score * 0.20 +
@@ -239,15 +243,14 @@ def compute_match(profile: dict, jd: dict) -> dict:
         arch_score * 0.10
     )
 
-    # Generate human-readable suggestions
     suggestions = []
     if must_missing:
         suggestions.append(f"Consider highlighting experience with: {', '.join(must_missing[:4])}")
     if exp_score < 50:
-        suggestions.append(f"The role requires {jd['experience']} of experience")
+        suggestions.append(f"The role requires {jd.get('experience', 'relevant')} of experience")
     if gth_missing:
         suggestions.append(f"Nice-to-have skills to develop: {', '.join(gth_missing[:3])}")
-    if not arch_signals and "architect" in jd.get("title", "").lower():
+    if not arch_signals and "architect" in (jd.get("title") or "").lower():
         suggestions.append("Highlight any architecture or system design experience")
 
     return {
@@ -263,7 +266,7 @@ def compute_match(profile: dict, jd: dict) -> dict:
                 "score": exp_score,
                 "weight": "20%",
                 "candidate_years": profile.get("years_of_experience"),
-                "required": jd["experience"]
+                "required": jd.get("experience", "Not specified")
             },
             "good_to_have": {
                 "score": gth_score,
@@ -274,13 +277,13 @@ def compute_match(profile: dict, jd: dict) -> dict:
             "role_alignment": {
                 "score": role_score,
                 "weight": "10%",
-                "seniority_fit": alignment.get("seniority_fit", "unknown"),
-                "reason": alignment.get("role_alignment_reason", "")
+                "seniority_fit": alignment.get("seniority_fit") or "unknown",
+                "reason": alignment.get("role_alignment_reason") or ""
             },
             "soft_skills": {
                 "score": soft_score,
                 "weight": "10%",
-                "signals_found": profile.get("soft_skills_signals", [])
+                "signals_found": profile.get("soft_skills_signals") or []
             },
             "architecture_depth": {
                 "score": arch_score,
@@ -288,8 +291,8 @@ def compute_match(profile: dict, jd: dict) -> dict:
                 "signals_found": arch_signals
             }
         },
-        "key_strengths": alignment.get("key_strengths", must_matched[:3]),
-        "key_gaps": alignment.get("key_gaps", must_missing[:3]),
-        "recommendation": alignment.get("overall_recommendation", "partial_match"),
+        "key_strengths": alignment.get("key_strengths") or must_matched[:3],
+        "key_gaps": alignment.get("key_gaps") or must_missing[:3],
+        "recommendation": alignment.get("overall_recommendation") or "partial_match",
         "suggestions": suggestions
     }
